@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>智能家具控制器</title>
+    <style type="text/css">
+        .btn {
+            width: 60px;
+            height: 40px;
+            font-style: 黑体;
+            font-size: 20px;
+            color: #FF0000;
+        }
+
+        .rge {
+            width: 280px;
+        }
+    </style>
+</head>
+<body>
+    <center>
+        <h1>机械臂舵机网页控制</h1>
+        <p>警告:舵机不防堵,不要使数值超出范围,不然会发烫烧坏</br>
+        <p>
+            <button type="button" class="btn" onclick="change('E','EV',-1)">E--</button>
+            <input type="range" class="rge" id="E" min="10" max="100" step="1" value="85" oninput="input('E','EV')" onchange="change('E','EV',0)">
+            <span id="EV">85</span>
+            <button type="button" class="btn" onclick="change('E','EV',+1)">E++</button>
+        </p>
+
+        <p>
+            <button type="button" class="btn" onclick="change('Z','ZV',-1)">Z--</button>
+            <input type="range" class="rge" id="Z" min="90" max="180" step="1" value="180" oninput="input('Z','ZV')" onchange="change('Z','ZV',0)">
+            <span id="ZV">180</span>
+            <button type="button" class="btn" onclick="change('Z','ZV',+1)">Z++</button>
+        </p>
+
+
+        <p>
+            <button type="button" class="btn" onclick="change('Y','YV',-1)">Y--</button>
+            <input type="range" class="rge" id="Y" min="50" max="180" step="1" value="90" oninput="input('Y','YV')" onchange="change('Y','YV',0)">
+            <span id="YV">90</span>
+            <button type="button" class="btn" onclick="change('Y','YV',+1)">Y++</button>
+        </p>
+
+        <p>
+            <button type="button" class="btn" onclick="change('X','XV',-1)">X--</button>
+            <input type="range" class="rge" id="X" min="0" max="180" step="1" value="90" oninput="input('X','XV')" onchange="change('X','XV',0)">
+            <span id="XV">90</span>
+            <button type="button" class="btn" onclick="change('X','XV',+1)">X++</button>
+        </p>
+
+        <p>
+            指令
+            <input type="text" style="width:340px;height:30px;" name="command" id="command" onkeydown="send()" value="H" tabindex="1">
+            <button type="button" style="height:30px;" onclick="sendData(null)" autofocus>发送</button>
+        </p>
+        <P>
+            <button type="button" style="height:30px;" onclick="sendData('P 3000')">P 3000 开泵3秒并关阀抽真空吸物</button>
+            <button type="button" style="height:30px;" onclick="sendData('O 2000')">O 2000 开阀2秒并关泵进空气卸物</button>
+        </P>
+        <P>
+            <button type="button" style="height:30px;" onclick="sendData('H')">H 全部归位</button>
+            <button type="button" style="height:30px;" onclick="sendData('S')">S 生成指令</button>
+            <button type="button" style="height:30px;" onclick="sendData('D')">D 删除指令</button>
+            <button type="button" style="height:30px;" onclick="sendData('C')">C 清空指令</button>
+            <button type="button" style="height:30px;" onclick="sendData('R')">R 执行指令</button>
+        </P>
+
+        <textarea id="RET" rows="26" cols="74" readonly="readonly">
+RE		重启 ESP8266 控制板
+DIR		列出控制板闪存里的所有文件
+? HELP.txt	查看指定文件内容,如 ? Auto.txt
+F Auto.txt	指定动作文件,之后的 SDRC 将操作此文件
+SH		保存所有舵机当前位置角度到 H.txt 文件
+S		往F指定文件添加 有转动过的舵机当前角度
+S 1000          往F指定文件添加延时指令 S 1000=S delay 1000
+S X90		往F指定文件添加 X90 指令,例如 S X+10;S Y-20
+D 3		在F指定文件删除 末尾 N条指令;D=D 1 删末尾1条
+Auto.txt 3	执行Auto.txt动作文件3次=Auto 3=R 3;R=R Auto.txt 1次
+C Auto.txt	删除开发板闪存里指定文件;格式化命令见源代码,需重新上传
+O 1000          开空气阀1秒卸物,开阀 O -1,关阀 O 0,不要超过10秒,插 D6
+P 2000          开真空泵2秒吸物,开泵 P -1,关泵 P 0,不要超过30秒,插 D7
+
+step 0		调整舵机转动速度,step 0 为原速,step 1 为减速
+下面舵机转动角度(0度-180度)控制.底座=X,大臂=Y,小臂=Z,夹子=E 勿一直夹着
+H		执行H.txt使 XYZE 舵机回归设定角度,可用SH设定H.txt内容
+X90;Y90		执行后 X 舵机转到 90度,Y 舵机转到 90度,模拟舵机不防堵
+X++;Y--		执行后 X 舵机角度 +1度,Y 舵机角度 -1度,等同 X+1;Y-1;
+X+10;Y-10	执行后 X 舵机角度+10度,Y 舵机角度-10度,注意:舵机不防堵
+
+网络接口+改成_	GET http://IP/command?x_10&y90&E-10&time=时间戳或随机值
+电脑 COM端口 控制要安装 CH340驱动,选择COM口,选115200波特率,可发命令控制
+
+</textarea>
+        <p>
+            <a href='/index.html'>[首页]</a>
+            <a href='/upload.html'>[上传文件]</a>
+            <a href='/Auto.txt' target="_blank" id="F">[Auto.txt]</a>
+            <a href='/config'>[WIFI设置]</a>
+            <a href='/upbin'>[更新固件]</a>
+            <a href='/HELP.html'>[操作说明]</a>
+        </p>
+    </center>
+
+
+    <script>
+
+	function sendData(arg) {
+		var xhttp = new XMLHttpRequest();
+		xhttp.onreadystatechange = ready;
+		if(arg==null){
+			arg=document.getElementById('command').value;
+		}
+		arg=arg.replace(/\+/g ,"_");					//把'+'替换为'_'
+		xhttp.open("GET", "command?"+arg+"&time="+new Date().getTime(), true);  //true false
+		xhttp.send();
+	}
+
+	function ready() {
+		if (this.readyState == 4 && this.status == 200) {
+			//使用 XMLHttpRequest 对象的 responseText 接收响应数据
+          var txt = this.responseText;
+
+          var obj = document.getElementById("RET");
+			obj.append(txt + '\n');		         //追加文本框内容
+			obj.scrollTop = obj.scrollHeight;
+
+          var i=txt.indexOf("{");
+          if(i>=0) {
+             txt=txt.substr(i);              //提取JSON内容
+			   var XYZE = JSON.parse(txt);
+             if(XYZE.E){
+               document.getElementById("E").value=XYZE.E; input("E","EV");
+               document.getElementById("Z").value=XYZE.Z; input("Z","ZV");
+               document.getElementById("Y").value=XYZE.Y; input("Y","YV");
+               document.getElementById("X").value=XYZE.X; input("X","XV");
+             }
+             if(XYZE.F){
+               document.getElementById("F").href=XYZE.F;
+               document.getElementById("F").innerHTML='['+XYZE.F+']';
+             }
+          }
+		}
+	}
+
+
+	function  send() {
+		if(event.keyCode==13){
+			sendData(document.getElementById('command').value);
+			document.getElementById('command').value='';
+		}
+	}
+
+
+   function change(i,j,v) {
+      var value = document.getElementById(i).value;
+      if(v>0) {value++;if(value>document.getElementById(i).max) value--;}
+      if(v<0) {value--;if(value<document.getElementById(i).min) value++;}
+      document.getElementById(j).innerHTML = value;
+      if(0!=v) document.getElementById(i).value=value;
+
+      value=i+value;
+      sendData(value);
+   }
+
+   function input(i,j) {
+     document.getElementById(j).innerHTML = document.getElementById(i).value;
+   }
+
+   var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = ready;
+	xhttp.open("GET","command",true);
+	xhttp.send();
+    </script>
+</body>
+</html>
